@@ -49,3 +49,26 @@ fn persist_directory(from: &Path, to: &Path) {
         }
     }
 }
+
+pub fn restore(version: u32) {
+    clear_directory(".");
+    persist_directory(Path::new(&format!("./.vcs/{version}")), Path::new("."));
+}
+
+fn clear_directory(directory: &str) {
+    let root_dir = fs::read_dir(directory).unwrap();
+    for item in root_dir {
+        let item_path = item.unwrap().path();
+        let file_name = item_path.file_name().unwrap();
+
+        if file_name == ".vcs" {
+            continue;
+        }
+
+        if item_path.is_dir() {
+            fs::remove_dir_all(item_path).unwrap();
+        } else {
+            fs::remove_file(item_path).unwrap();
+        }
+    }
+}
