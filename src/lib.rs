@@ -7,7 +7,7 @@ pub fn run(command: &str, arguments: &[String]) {
     if command == "init" {
         init();
     } else if command == "commit" {
-        commit();
+        commit(&arguments[0]);
     } else if command == "restore" {
         let version = match arguments[0].parse() {
             Ok(v) => v,

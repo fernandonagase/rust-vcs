@@ -23,7 +23,9 @@ impl Config {
         let command = args[1].clone();
         let arguments: Vec<String> = args[2..].iter().cloned().collect();
 
-        if command == "restore" && arguments.len() != 1 {
+        if command == "commit" && arguments.len() != 1 {
+            panic!("O comando commit exige um argumento: descrição");
+        } else if command == "restore" && arguments.len() != 1 {
             panic!("O comando restore exige um argumento: versão");
         }
 

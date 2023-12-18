@@ -13,7 +13,7 @@ pub fn init() {
     }
 }
 
-pub fn commit() {
+pub fn commit(description: &str) {
     let version = match fs::read_to_string(VERSION_FILE) {
         Ok(value) => value.parse::<i32>().expect("Erro ao converter versão") + 1,
         Err(error) => match error.kind() {
@@ -21,7 +21,10 @@ pub fn commit() {
             _ => panic!("Erro ao converter versão"),
         },
     };
-    fs::create_dir(format!("./.vcs/{version}")).expect("Erro ao criar diretório de versão");
+
+    let version_directory = format!("./.vcs/{version}");
+    fs::create_dir(&version_directory).expect("Erro ao criar diretório de versão");
+    fs::write(format!("{version_directory}/README"), format!("{description}\n")).unwrap();
     persist_directory(Path::new("."), Path::new(&format!("./.vcs/{version}")));
     fs::write("./.vcs/version", format!("{version}")).expect("Falha ao atualizar versão");
 }
@@ -31,7 +34,8 @@ fn persist_directory(from: &Path, to: &Path) {
     for item in dir {
         let item = item.expect("Erro ao ler caminho").path();
 
-        if item.file_name().expect("Erro") == ".vcs" {
+        let file_name = item.file_name().expect("Erro");
+        if file_name == ".vcs" || file_name == "README" {
             continue;
         }
 
