@@ -1,62 +1,72 @@
 use std::{
     fs,
-    io::ErrorKind,
-    path::{Path, PathBuf},
+    io::{self, ErrorKind},
+    path::Path,
 };
 
-const VERSION_FILE: &str = "./.vcs/version";
+const VCS_DIR: &str = ".vcs";
+const VERSION_FILE: &str = "version";
 
 pub fn init() {
-    match fs::create_dir("./.vcs") {
+    match fs::create_dir(VCS_DIR) {
         Ok(_) => println!("Repositório inicializado!"),
         Err(_) => println!("Erro ao inicializar repositório!"),
     }
 }
 
 pub fn commit(description: &str) {
-    let version = match fs::read_to_string(VERSION_FILE) {
-        Ok(value) => value.parse::<i32>().expect("Erro ao converter versão") + 1,
-        Err(error) => match error.kind() {
-            ErrorKind::NotFound => 1,
-            _ => panic!("Erro ao converter versão"),
-        },
-    };
-
-    let version_directory = format!("./.vcs/{version}");
+    let version = get_latest_version().unwrap_or(0) + 1;
+    let version_directory = format!("{VCS_DIR}/{version}");
     fs::create_dir(&version_directory).expect("Erro ao criar diretório de versão");
-    fs::write(format!("{version_directory}/README"), format!("{description}\n")).unwrap();
-    persist_directory(Path::new("."), Path::new(&format!("./.vcs/{version}")));
-    fs::write("./.vcs/version", format!("{version}")).expect("Falha ao atualizar versão");
+    fs::write(
+        format!("{version_directory}/README"),
+        format!("{description}\n"),
+    )
+    .unwrap();
+    persist_directory(Path::new("."), Path::new(&version_directory)).unwrap();
+    fs::write(format!("{VCS_DIR}/{VERSION_FILE}"), format!("{version}"))
+        .expect("Falha ao atualizar versão");
 }
 
-fn persist_directory(from: &Path, to: &Path) {
-    let dir = fs::read_dir(from).expect("Erro ao ler diretório");
-    for item in dir {
-        let item = item.expect("Erro ao ler caminho").path();
+fn get_latest_version() -> Option<u32> {
+    let version_file_path = format!("{VCS_DIR}/{VERSION_FILE}");
+    let incorrect_version_format_message =
+        format!("Formato de versão em {version_file_path} incorreto");
+    match fs::read_to_string(&version_file_path) {
+        Ok(value) => Some(
+            value
+                .parse::<u32>()
+                .expect(&incorrect_version_format_message),
+        ),
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => None,
+            _ => panic!("Erro ao ler arquivo de versão"),
+        },
+    }
+}
 
-        let file_name = item.file_name().expect("Erro");
-        if file_name == ".vcs" || file_name == "README" {
+fn persist_directory(source: &Path, dest: &Path) -> Result<(), io::Error> {
+    for entry in fs::read_dir(source)? {
+        let entry = entry?;
+
+        if entry.file_name() == VCS_DIR || entry.file_name() == "README" {
             continue;
         }
 
-        if item.is_dir() {
-            let mut dir_to = PathBuf::from(to);
-            dir_to.push(item.file_name().expect("Erro"));
-            fs::create_dir(&dir_to).expect("Erro");
-            persist_directory(&item, &dir_to)
+        if entry.file_type()?.is_dir() {
+            let to_dir = dest.join(entry.file_name());
+            fs::create_dir(&to_dir)?;
+            persist_directory(&entry.path(), &to_dir)?;
         } else {
-            let copy_to: PathBuf = [to, Path::new(item.file_name().expect("Erro"))]
-                .iter()
-                .collect();
-            println!("Persistindo {}", copy_to.to_str().expect("Erro"));
-            fs::copy(item, copy_to).expect("Erro");
+            fs::copy(&entry.path(), dest.join(entry.file_name()))?;
         }
     }
+    Ok(())
 }
 
 pub fn restore(version: u32) {
     clear_directory(".");
-    persist_directory(Path::new(&format!("./.vcs/{version}")), Path::new("."));
+    persist_directory(Path::new(&format!("{VCS_DIR}/{version}")), Path::new(".")).unwrap();
 }
 
 fn clear_directory(directory: &str) {
@@ -65,7 +75,7 @@ fn clear_directory(directory: &str) {
         let item_path = item.unwrap().path();
         let file_name = item_path.file_name().unwrap();
 
-        if file_name == ".vcs" {
+        if file_name == VCS_DIR {
             continue;
         }
 

@@ -16,7 +16,7 @@ struct Config {
 }
 
 impl Config {
-    fn new(args: &[String]) -> Config {
+    fn new(args: &[String]) -> Self {
         if args.len() < 2 {
             panic!("Uso do comando: {EXECUTABLE_NAME} comando <argumentos>?");
         }
@@ -29,6 +29,6 @@ impl Config {
             panic!("O comando restore exige um argumento: versão");
         }
 
-        Config { command, arguments }
+        Self { command, arguments }
     }
 }
